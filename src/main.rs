@@ -48,7 +48,9 @@ fn main() -> Result<()> {
             let db = Database::new(args[1].clone());
 
             let schema = db.get_schema()?;
-            let page1 = schema.page.raw_data;
+            // let page1 = schema.page.raw_data;
+
+            schema.page.get_cell_offsets();
 
             eprintln!("Page type: {}", schema.page.page_header.page_type);
 
@@ -56,26 +58,22 @@ fn main() -> Result<()> {
             eprintln!("Type of B-tree: {}", schema.page.page_header.page_type);
             eprintln!("Number of cells: {}", num_cells);
 
-            eprintln!("Page: {:?}", &page1[0..20]);
-            let mut offsets: Vec<u16> = Vec::with_capacity(num_cells as usize);
+            let offsets = schema.page.get_cell_offsets();
 
-            // for i in 0..num_cells {
-            //     let offset_index = SQLITE_PAGE_HEADER_SIZE + (i * 2) as usize;
-            //     let offset = u16::from_be_bytes([
-            //         page1[offset_index],
-            //         page1[offset_index + 1]
-            //     ]);
-            //     offsets.push(offset - 100);
-            // }
-            //
-            // eprintln!("Offsets: {:?}", offsets);
-            //
-            // // let size1 = decode_sqlite_varint(&page1[offsets[0] as usize..(offsets[0] + 9) as usize]);
-            // // println!("Size: {}", size1);
-            // // let size2 = decode_sqlite_varint(&page1[offsets[1] as usize..(offsets[1] + 9) as usize]);
-            // // println!("Size: {}", size2);
+            eprintln!("Offsets: {:?}", offsets);
+
+            // let size1 = decode_sqlite_varint(&page1[offsets[0] as usize..(offsets[0] + 9) as usize]);
+            // println!("Size: {}", size1);
+            // let size2 = decode_sqlite_varint(&page1[offsets[1] as usize..(offsets[1] + 9) as usize]);
+            // println!("Size: {}", size2);
             // let (size3, size_bytes) = decode_sqlite_varint(&page1[offsets[2] as usize..(offsets[2] + 9) as usize]);
             // println!("Size: {}, {}", size3, size_bytes);
+
+            for i in 0..offsets.len() {
+                let offset = offsets[i];
+                schema.page.get_cell_content(offset);
+            }
+
             //
             // let (row_id, size_row) = decode_sqlite_varint(&page1[offsets[2] as usize + size_bytes..(offsets[2] + 9) as usize + size_bytes]);
             // println!("Rowid: {:?}", row_id);

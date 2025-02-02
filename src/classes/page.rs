@@ -1,5 +1,6 @@
 use crate::classes::database::DatabaseHeader;
-use crate::SQLITE_PAGE_HEADER_SIZE;
+use crate::{SQLITE_HEADER_SIZE, SQLITE_PAGE_HEADER_SIZE};
+use crate::helpers::decode_sqlite_varint;
 
 pub struct PageHeader {
     pub page_type: u8,
@@ -38,5 +39,31 @@ impl Page {
             page_header,
             data
         }
+    }
+
+    pub fn get_cell_offsets(&self) -> Vec<u16> {
+        let mut offsets: Vec<u16> = Vec::with_capacity(self.page_header.num_cells as usize);
+
+        for i in 0..self.page_header.num_cells {
+            let offset_index = SQLITE_PAGE_HEADER_SIZE + (i * 2) as usize;
+            let offset = u16::from_be_bytes([
+                self.raw_data[offset_index],
+                self.raw_data[offset_index + 1]
+            ]);
+            offsets.push(offset);
+        }
+
+        offsets
+    }
+
+    pub fn get_cell_content(&self, offset: u16) -> Vec<u8> {
+        let db_header_offset = if self.page_number == 1 { SQLITE_HEADER_SIZE } else { 0 };
+
+        let cell_header_offset =  offset as usize - db_header_offset;
+
+        let cell_size = decode_sqlite_varint(&self.raw_data[cell_header_offset..cell_header_offset + 9]);
+        println!("Size: {:?}", cell_size);
+
+        return vec![];
     }
 }
