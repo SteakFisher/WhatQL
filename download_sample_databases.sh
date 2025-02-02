@@ -1,3 +1,4 @@
+
 #!/bin/sh
 
 echo "Downloading superheroes.db: ~1MB (used in stage 7)"
