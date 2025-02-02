@@ -4,6 +4,7 @@ mod classes;
 use anyhow::{bail, Result};
 use classes::Database;
 use std::io::prelude::*;
+use crate::helpers::SqliteValue;
 
 const SQLITE_HEADER_SIZE: usize = 100;
 const SQLITE_PAGE_HEADER_SIZE: usize = 8;
@@ -49,21 +50,16 @@ fn main() -> Result<()> {
 
             schema.page.get_cell_offsets();
 
-            eprintln!("Page type: {}", schema.page.page_header.page_type);
-
             let num_cells =schema.page.page_header.num_cells;
-            eprintln!("Type of B-tree: {}", schema.page.page_header.page_type);
-            eprintln!("Number of cells: {}", num_cells);
 
             let offsets = schema.page.get_cell_offsets();
-
-            eprintln!("Offsets: {:?}", offsets);
 
             for i in 0..offsets.len() {
                 let offset = offsets[i];
                 let cell = schema.page.get_cell_content(offset)?;
-                eprintln!("Cell {}: {:?}", i, cell.record.values);
-
+                if let SqliteValue::Text(text) = &cell.record.values[2] {
+                    println!("{}", text);  // Will print just: apples, sqlite_sequence, oranges
+                }
             }
 
             //

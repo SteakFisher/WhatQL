@@ -19,8 +19,6 @@ impl Record {
     pub fn new(raw_data: Vec<u8>, mut offset: usize) -> Result<Record, std::io::Error> {
         let (header_size, header_size_offset) = decode_sqlite_varint(&raw_data[offset..offset + 9]);
         offset += header_size_offset;
-        println!("Header size: {:?}", header_size);
-        println!("Offset: {:?}", offset);
 
         let mut serial_codes = vec![];
 
@@ -32,14 +30,10 @@ impl Record {
         }
         offset += header_size as usize - 1;
 
-        println!("Serial codes: {:?}", serial_codes);
-
         let mut values = vec![];
 
         for serial_code in serial_codes.clone() {
-            println!("Serial code: {:?}", serial_code);
             let parsed_result = parse_value(serial_code, &raw_data[offset..])?;
-            println!("Parsed result: {:?}", parsed_result.value);
             values.push(parsed_result.value);
             offset += parsed_result.bytes_consumed;
         }

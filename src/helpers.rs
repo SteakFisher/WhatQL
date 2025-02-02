@@ -1,3 +1,5 @@
+use std::fmt;
+
 pub fn decode_sqlite_varint(bytes: &[u8]) -> (u64, usize) {
     let mut result = 0;
 
@@ -19,6 +21,18 @@ pub enum SqliteValue {
     Float(f64),
     Blob(Vec<u8>),
     Text(String),
+}
+
+impl fmt::Display for SqliteValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SqliteValue::Null => write!(f, "NULL"),
+            SqliteValue::Integer(i) => write!(f, "{}", i),
+            SqliteValue::Float(fl) => write!(f, "{}", fl),
+            SqliteValue::Blob(b) => write!(f, "X'{}'", hex::encode(b)),  // You'll need the hex crate
+            SqliteValue::Text(s) => write!(f, "'{}'", s),
+        }
+    }
 }
 
 pub struct ParseResult {
