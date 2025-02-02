@@ -1,12 +1,9 @@
 mod helpers;
 mod classes;
 
-use classes::Database;
 use anyhow::{bail, Result};
-use std::fs::File;
+use classes::Database;
 use std::io::prelude::*;
-use std::io::SeekFrom;
-use crate::helpers::decode_sqlite_varint;
 
 const SQLITE_HEADER_SIZE: usize = 100;
 const SQLITE_PAGE_HEADER_SIZE: usize = 8;
@@ -62,16 +59,11 @@ fn main() -> Result<()> {
 
             eprintln!("Offsets: {:?}", offsets);
 
-            // let size1 = decode_sqlite_varint(&page1[offsets[0] as usize..(offsets[0] + 9) as usize]);
-            // println!("Size: {}", size1);
-            // let size2 = decode_sqlite_varint(&page1[offsets[1] as usize..(offsets[1] + 9) as usize]);
-            // println!("Size: {}", size2);
-            // let (size3, size_bytes) = decode_sqlite_varint(&page1[offsets[2] as usize..(offsets[2] + 9) as usize]);
-            // println!("Size: {}, {}", size3, size_bytes);
-
             for i in 0..offsets.len() {
                 let offset = offsets[i];
-                schema.page.get_cell_content(offset);
+                let cell = schema.page.get_cell_content(offset);
+                eprintln!("Cell {}: {:?}", i, cell.record.values);
+
             }
 
             //

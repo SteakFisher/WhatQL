@@ -1,9 +1,9 @@
+use crate::classes::page::SchemaPage;
+use crate::classes::Page;
+use crate::{SQLITE_HEADER_SIZE, SQLITE_PAGE_HEADER_SIZE};
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::SeekFrom;
-use crate::classes::Page;
-use crate::classes::page::{PageHeader, SchemaPage};
-use crate::{SQLITE_HEADER_SIZE, SQLITE_PAGE_HEADER_SIZE};
 
 pub struct Database {
     file_location: String,
@@ -92,7 +92,7 @@ impl Database {
 
         let schema_page = Page::new(page[100..page.len()].to_vec(), 1);
 
-        let mut schema = SchemaPage {
+        let schema = SchemaPage {
             db_header: self.header()?,
             page: schema_page
         };
