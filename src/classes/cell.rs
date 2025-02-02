@@ -1,10 +1,10 @@
 use std::collections::HashMap;
-use crate::helpers::decode_sqlite_varint;
+use crate::helpers::{decode_sqlite_varint, parse_value, SqliteValue};
 
 pub struct Record {
     pub header_size: u64,
     pub serial_codes: Vec<u64>,
-    pub values: Vec<u64>,
+    pub values: Vec<SqliteValue>,
 }
 
 pub struct Cell {
@@ -16,7 +16,7 @@ pub struct Cell {
 
 
 impl Record {
-    pub fn new(raw_data: Vec<u8>, mut offset: usize) -> Record {
+    pub fn new(raw_data: Vec<u8>, mut offset: usize) -> Result<Record, std::io::Error> {
         let (header_size, header_size_offset) = decode_sqlite_varint(&raw_data[offset..offset + 9]);
         offset += header_size_offset;
         println!("Header size: {:?}", header_size);
@@ -30,22 +30,30 @@ impl Record {
             serial_codes.push(size);
             index += size_bytes as u64;
         }
+        offset += header_size as usize - 1;
 
         println!("Serial codes: {:?}", serial_codes);
 
         let mut values = vec![];
 
+        for serial_code in serial_codes.clone() {
+            println!("Serial code: {:?}", serial_code);
+            let parsed_result = parse_value(serial_code, &raw_data[offset..])?;
+            println!("Parsed result: {:?}", parsed_result.value);
+            values.push(parsed_result.value);
+            offset += parsed_result.bytes_consumed;
+        }
 
-        Record {
+        Ok(Record {
             header_size,
             serial_codes,
             values,
-        }
+        })
     }
 }
 
 impl Cell {
-    pub fn new(raw_data: Vec<u8>, cell_header_offset: usize) -> Cell {
+    pub fn new(raw_data: Vec<u8>, cell_header_offset: usize) -> Result<Cell, std::io::Error> {
         let mut varint_offset = 0;
 
         let (record_size, record_offset) = decode_sqlite_varint(&raw_data[cell_header_offset..cell_header_offset + 9]);
@@ -54,13 +62,13 @@ impl Cell {
         let (row_id, row_id_offset) = decode_sqlite_varint(&raw_data[cell_header_offset + varint_offset..cell_header_offset + varint_offset + 9]);
         varint_offset += row_id_offset;
 
-        let record = Record::new(raw_data.clone(), cell_header_offset + varint_offset);
+        let record = Record::new(raw_data.clone(), cell_header_offset + varint_offset)?;
 
-        Cell {
+        Ok(Cell {
             record_size,
             row_id,
             record,
             raw_data
-        }
+        })
     }
 }

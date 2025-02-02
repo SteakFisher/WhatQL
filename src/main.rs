@@ -61,7 +61,7 @@ fn main() -> Result<()> {
 
             for i in 0..offsets.len() {
                 let offset = offsets[i];
-                let cell = schema.page.get_cell_content(offset);
+                let cell = schema.page.get_cell_content(offset)?;
                 eprintln!("Cell {}: {:?}", i, cell.record.values);
 
             }

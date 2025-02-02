@@ -58,7 +58,7 @@ impl Page {
         offsets
     }
 
-    pub fn get_cell_content(&self, offset: u16) -> Cell {
+    pub fn get_cell_content(&self, offset: u16) -> Result<Cell, std::io::Error> {
         let db_header_offset = if self.page_number == 1 { SQLITE_HEADER_SIZE } else { 0 };
 
         let cell_header_offset =  offset as usize - db_header_offset;
