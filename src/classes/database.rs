@@ -1,5 +1,6 @@
-use crate::classes::page::SchemaPage;
-use crate::classes::Page;
+use std::fmt;
+use crate::classes::page::{PageSuper, SchemaPage};
+use crate::classes::DataPage;
 use crate::{SQLITE_HEADER_SIZE, SQLITE_PAGE_HEADER_SIZE};
 use std::fs::File;
 use std::io::prelude::*;
@@ -90,24 +91,26 @@ impl Database {
         let mut page = vec![0; page_size as usize];
         file.read_exact(&mut page)?;
 
-        let schema_page = Page::new(page[100..page.len()].to_vec(), 1);
-
-        let schema = SchemaPage {
-            db_header: self.header()?,
-            page: schema_page
-        };
+        let schema = SchemaPage::new(page, PageSuper::Database(self.clone()));
 
         Ok(schema)
     }
 
-    pub fn get_page(&self, page_number: u32) -> Result<Page, std::io::Error> {
-        let page_size = self.header()?.page_size as u64;
-        let mut file = &self.file;
-        file.seek(SeekFrom::Start(0))?;
-        let mut page = vec![0; page_size as usize];
-        file.seek(SeekFrom::Start(page_number as u64 * page_size))?;
-        file.read_exact(&mut page)?;
-        let data = page.clone()[(SQLITE_PAGE_HEADER_SIZE)..page.len()].to_vec();
-        Ok(Page::new(data, page_number))
+    // pub fn get_page(&self, page_number: u32) -> Result<DataPage, std::io::Error> {
+    //     let page_size = self.header()?.page_size as u64;
+    //     let mut file = &self.file;
+    //     file.seek(SeekFrom::Start(0))?;
+    //     let mut page = vec![0; page_size as usize];
+    //     file.seek(SeekFrom::Start(page_number as u64 * page_size))?;
+    //     file.read_exact(&mut page)?;
+    //     let data = page.clone()[(SQLITE_PAGE_HEADER_SIZE)..page.len()].to_vec();
+    //     Ok(DataPage::new(data, page_number, ))
+    // }
+
+    pub fn clone(&self) -> Database {
+        Database {
+            file_location: self.file_location.clone(),
+            file: self.file.try_clone().unwrap()
+        }
     }
 }

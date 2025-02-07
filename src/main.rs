@@ -1,10 +1,11 @@
 mod helpers;
 mod classes;
 
+use crate::helpers::SqliteValue;
 use anyhow::{bail, Result};
 use classes::Database;
 use std::io::prelude::*;
-use crate::helpers::SqliteValue;
+use std::ops::Index;
 
 const SQLITE_HEADER_SIZE: usize = 100;
 const SQLITE_PAGE_HEADER_SIZE: usize = 8;
@@ -48,9 +49,8 @@ fn main() -> Result<()> {
             let schema = db.get_schema()?;
             // let page1 = schema.page.raw_data;
 
-            schema.page.get_cell_offsets();
+            // let record = (&db.get_schema()?.page.get_cell_contents()[0]).record.parse_into_schema()?;
 
-            let num_cells =schema.page.page_header.num_cells;
 
             let offsets = schema.page.get_cell_offsets();
 
@@ -80,7 +80,16 @@ fn main() -> Result<()> {
             //
             // println!("Record header: {:?}", record_header);
         }
-        _ => bail!("Missing or invalid command passed: {}", command),
+        _ => {
+            let command_split = command.split(" ").collect::<Vec<&str>>();
+            let query_table_name = &command_split[command_split.len() - 1];
+            eprintln!("Querying table: {}", query_table_name);
+
+            let db = Database::new(args[1].clone());
+
+            // bail!("Missing or invalid command passed: {}", command.as_str())
+
+        },
     }
 
     Ok(())
