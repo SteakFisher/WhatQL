@@ -95,7 +95,7 @@ fn main() -> Result<()> {
             let table = db.get_page(table_root_page - 1)?;
 
             let cell_count = table.page_header.num_cells;
-            println!("number of records: {}", cell_count);
+            println!("{}", cell_count);
 
             // let mut table = schema.get_page(query_table_name)?;
             // bail!("Missing or invalid command passed: {}", command.as_str())
