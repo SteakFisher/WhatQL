@@ -31,6 +31,15 @@ impl PageSuper {
     }
 }
 
+impl PageType {
+    pub fn clone(&self) -> PageType {
+        match self {
+            PageType::Schema(schema) => PageType::Schema(schema.clone()),
+            PageType::Data(data) => PageType::Data(data.clone())
+        }
+    }
+}
+
 pub struct DataPage {
     pub page_number: u32,
     pub page_header: PageHeader,

@@ -6,6 +6,7 @@ use anyhow::{bail, Result};
 use classes::Database;
 use std::io::prelude::*;
 use std::ops::Index;
+use crate::classes::RecordType;
 
 const SQLITE_HEADER_SIZE: usize = 100;
 const SQLITE_PAGE_HEADER_SIZE: usize = 8;
@@ -55,9 +56,16 @@ fn main() -> Result<()> {
             for i in 0..offsets.len() {
                 let offset = offsets[i];
                 let cell = schema.get_cell_content(offset)?;
-                if let SqliteValue::Text(text) = &cell.record.values[2] {
-                    println!("{}", text);
+
+                if let RecordType::SchemaRecord(record) = &cell.record {
+                    if let SqliteValue::Text(text) = &record.values[1] {
+                        println!("{}", text);
+                    }
                 }
+
+                // if let SqliteValue::Text(text) = &cell.record.values[2] {
+                //     println!("{}", text);
+                // }
             }
         }
         _ => {

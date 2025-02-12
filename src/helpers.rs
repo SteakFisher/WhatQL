@@ -14,7 +14,7 @@ pub fn decode_sqlite_varint(bytes: &[u8]) -> (u64, usize) {
     panic!("Invalid VARINT");
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SqliteValue {
     Null,
     Integer(i64),
@@ -34,7 +34,6 @@ impl fmt::Display for SqliteValue {
         }
     }
 }
-
 pub struct ParseResult {
     pub value: SqliteValue,
     pub bytes_consumed: usize,
