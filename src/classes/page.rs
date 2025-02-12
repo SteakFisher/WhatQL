@@ -1,8 +1,10 @@
 use std::io::Error;
 use crate::classes::database::DatabaseHeader;
-use crate::classes::{Cell, Database};
+use crate::classes::{Cell, Database, RecordType};
 use crate::{SQLITE_HEADER_SIZE, SQLITE_PAGE_HEADER_SIZE};
 use crate::classes::cell::CellSuper;
+use crate::classes::record::SchemaRecord;
+use crate::helpers::SqliteValue;
 
 pub struct PageHeader {
     pub page_type: u8,
@@ -134,6 +136,21 @@ impl  SchemaPage {
         })
     }
 
+    pub fn get_table_data(&self) -> Vec<SchemaRecord> {
+        let mut table_names: Vec<SchemaRecord> = Vec::new();
+
+        for cell in self.get_cell_contents() {
+            match cell.record {
+                RecordType::SchemaRecord(record) => {
+                    table_names.push(record.clone());
+                },
+                _ => {}
+            }
+        }
+
+        table_names
+    }
+
     pub fn clone(&self) -> SchemaPage {
         SchemaPage {
             db_header: self.db_header.clone(),
@@ -148,7 +165,6 @@ impl  SchemaPage {
 impl DataPage {
     pub fn new(page_number: u32, super_struct: PageSuper) -> DataPage {
         let page_header = PageHeader::new(super_struct.raw_data[..SQLITE_PAGE_HEADER_SIZE].to_vec());
-
 
         let data = super_struct.raw_data[SQLITE_PAGE_HEADER_SIZE..super_struct.raw_data.len()].to_vec();
         DataPage {

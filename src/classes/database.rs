@@ -3,6 +3,7 @@ use crate::SQLITE_HEADER_SIZE;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::SeekFrom;
+use crate::classes::DataPage;
 
 pub struct Database {
     file_location: String,
@@ -133,16 +134,19 @@ impl Database {
         Ok(schema)
     }
 
-    // pub fn get_page(&self, page_number: u32) -> Result<DataPage, std::io::Error> {
-    //     let page_size = self.header()?.page_size as u64;
-    //     let mut file = &self.file;
-    //     file.seek(SeekFrom::Start(0))?;
-    //     let mut page = vec![0; page_size as usize];
-    //     file.seek(SeekFrom::Start(page_number as u64 * page_size))?;
-    //     file.read_exact(&mut page)?;
-    //     let data = page.clone()[(SQLITE_PAGE_HEADER_SIZE)..page.len()].to_vec();
-    //     Ok(DataPage::new(data, page_number, ))
-    // }
+    pub fn get_page(&self, page_number: u32) -> Result<DataPage, std::io::Error> {
+        let page_size = self.header()?.page_size as u64;
+        let mut file = &self.file;
+        file.seek(SeekFrom::Start(0))?;
+        let mut page = vec![0; page_size as usize];
+        file.seek(SeekFrom::Start(page_number as u64 * page_size))?;
+        file.read_exact(&mut page)?;
+        // println!("page: {:?}", page);
+        Ok(DataPage::new(page_number, PageSuper {
+            db: self.clone(),
+            raw_data: page
+        }))
+    }
 
     pub fn clone(&self) -> Database {
         Database {

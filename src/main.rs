@@ -1,6 +1,7 @@
 mod helpers;
 mod classes;
 
+use std::fmt::Display;
 use crate::helpers::SqliteValue;
 use anyhow::{bail, Result};
 use classes::Database;
@@ -49,23 +50,14 @@ fn main() -> Result<()> {
 
             let schema = db.get_schema()?;
 
-            let offsets = &schema.get_cell_contents();
-
             let offsets = schema.get_cell_offsets();
 
-            for i in 0..offsets.len() {
-                let offset = offsets[i];
-                let cell = schema.get_cell_content(offset)?;
+            let table_names = schema.get_table_data();
 
-                if let RecordType::SchemaRecord(record) = &cell.record {
-                    if let SqliteValue::Text(text) = &record.values[1] {
-                        println!("{}", text);
-                    }
+            for i in table_names {
+                if let SqliteValue::Text(text) = &i.values[1] {
+                    println!("{}", text);
                 }
-
-                // if let SqliteValue::Text(text) = &cell.record.values[2] {
-                //     println!("{}", text);
-                // }
             }
         }
         _ => {
@@ -75,6 +67,36 @@ fn main() -> Result<()> {
 
             let db = Database::new(args[1].clone());
 
+            let schema = db.get_schema()?;
+
+            let table_data = schema.get_table_data();
+
+            let mut table_found = false;
+            let mut table_root_page = 0;
+
+            for i in table_data {
+                if let SqliteValue::Text(text) = &i.values[1] {
+                    if (text == query_table_name) {
+                        table_found = true;
+                        if let SqliteValue::Integer(root_page_number) = &i.values[3] {
+                            if let SqliteValue::Integer(root_page_number) = &i.values[3] {
+                                table_root_page = *root_page_number as u32;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !table_found {
+                bail!("Table not found: {}", query_table_name);
+            }
+
+            let table = db.get_page(table_root_page - 1)?;
+
+            let cell_count = table.page_header.num_cells;
+            println!("number of records: {}", cell_count);
+
+            // let mut table = schema.get_page(query_table_name)?;
             // bail!("Missing or invalid command passed: {}", command.as_str())
 
         },
