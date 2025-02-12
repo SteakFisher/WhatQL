@@ -1,6 +1,8 @@
+use std::io::Error;
 use crate::classes::database::DatabaseHeader;
 use crate::classes::{Cell, Database};
 use crate::{SQLITE_HEADER_SIZE, SQLITE_PAGE_HEADER_SIZE};
+use crate::classes::cell::CellSuper;
 
 pub struct PageHeader {
     pub page_type: u8,
@@ -15,21 +17,22 @@ pub enum PageType {
     Data(DataPage),
 }
 
-pub enum PageSuper {
-    Database(Database)
+pub struct PageSuper {
+    pub db: Database,
+    pub raw_data: Vec<u8>
 }
 
 impl PageSuper {
     pub fn clone(&self) -> PageSuper {
-        match self {
-            PageSuper::Database(db) => PageSuper::Database(db.clone())
+        PageSuper {
+            db: self.db.clone(),
+            raw_data: self.raw_data.clone()
         }
     }
 }
 
 pub struct DataPage {
     pub page_number: u32,
-    pub raw_data: Vec<u8>,
     pub page_header: PageHeader,
     pub data: Vec<u8>,
     pub super_struct: PageSuper
@@ -37,55 +40,14 @@ pub struct DataPage {
 
 pub struct SchemaPage {
     pub db_header: DatabaseHeader,
-    pub page: DataPage,
-    pub super_struct: PageSuper,
-    raw_data: Vec<u8>
-}
-
-impl SchemaPage {
-    pub fn new(raw_data: Vec<u8>, super_struct: PageSuper) -> SchemaPage {
-        let page_header = PageHeader::new(raw_data[SQLITE_HEADER_SIZE..100 + SQLITE_PAGE_HEADER_SIZE].to_vec());
-
-        let data = raw_data[SQLITE_HEADER_SIZE..].to_vec();
-
-        let header = match super_struct.clone() {
-            PageSuper::Database(schema_page) => {
-                schema_page.header().unwrap()
-            },
-        };
-
-        SchemaPage {
-            db_header: header,
-            page: DataPage {
-                page_number: 1,
-                raw_data: data.clone(),
-                page_header,
-                data: data[SQLITE_PAGE_HEADER_SIZE..].to_vec(),
-                super_struct: super_struct.clone()
-            },
-            super_struct: super_struct.clone(),
-            raw_data
-        }
-    }
-
-    pub fn get_cell_offsets(&self) -> Vec<u16> {
-        let mut offsets: Vec<u16> = Vec::with_capacity(self.page.page_header.num_cells as usize);
-
-        for i in 0..self.page.page_header.num_cells {
-            let offset_index = SQLITE_PAGE_HEADER_SIZE + (i * 2) as usize;
-            let offset = u16::from_be_bytes([
-                self.page.raw_data[offset_index],
-                self.page.raw_data[offset_index + 1]
-            ]);
-            offsets.push(offset);
-        }
-
-        offsets
-    }
+    pub page_number: u32,
+    pub page_header: PageHeader,
+    pub data: Vec<u8>,
+    pub super_struct: PageSuper
 }
 
 impl PageHeader {
-    pub fn new(raw_data: Vec<u8>) -> PageHeader {
+    fn new(raw_data: Vec<u8>) -> PageHeader {
         PageHeader {
             page_type: raw_data[0],
             first_free_block: u16::from_be_bytes([raw_data[1], raw_data[2]]),
@@ -94,21 +56,98 @@ impl PageHeader {
             num_frag_free_bytes: raw_data[7]
         }
     }
+
+    fn clone(&self) -> PageHeader {
+        PageHeader {
+            page_type: self.page_type,
+            first_free_block: self.first_free_block,
+            num_cells: self.num_cells,
+            start_of_cell_content_area: self.start_of_cell_content_area,
+            num_frag_free_bytes: self.num_frag_free_bytes
+        }
+    }
+}
+
+impl  SchemaPage {
+    pub fn new(super_struct: PageSuper) -> SchemaPage {
+        let page_header = PageHeader::new(super_struct.raw_data[SQLITE_HEADER_SIZE..100 + SQLITE_PAGE_HEADER_SIZE].to_vec());
+
+        let data = super_struct.raw_data[SQLITE_HEADER_SIZE..].to_vec();
+
+        let header = super_struct.db.header().unwrap();
+
+        SchemaPage {
+            db_header: header,
+            page_number: 1,
+            page_header,
+            data: data[SQLITE_PAGE_HEADER_SIZE..].to_vec(),
+            super_struct,
+        }
+    }
+
+    pub fn get_cell_offsets(&self) -> Vec<u16> {
+        let mut offsets: Vec<u16> = Vec::with_capacity(self.page_header.num_cells as usize);
+
+        for i in 0..self.page_header.num_cells {
+            let offset_index = SQLITE_HEADER_SIZE + SQLITE_PAGE_HEADER_SIZE + (i * 2) as usize;
+            let offset = u16::from_be_bytes([
+                self.super_struct.raw_data[offset_index],
+                self.super_struct.raw_data[offset_index + 1]
+            ]);
+            offsets.push(offset);
+        }
+
+        offsets
+    }
+
+    pub fn get_cell_contents(&self) -> Vec<Cell> {
+        let mut cells: Vec<Cell> = Vec::with_capacity(self.page_header.num_cells as usize);
+
+        for i in 0..self.page_header.num_cells {
+            let offset_index = SQLITE_HEADER_SIZE + SQLITE_PAGE_HEADER_SIZE + (i * 2) as usize;
+            let offset = u16::from_be_bytes([
+                self.super_struct.raw_data[offset_index],
+                self.super_struct.raw_data[offset_index + 1]
+            ]);
+            let cell = self.get_cell_content(offset).unwrap();
+            cells.push(cell);
+        }
+
+        cells
+    }
+
+    pub fn get_cell_content(&self, offset: u16) -> Result<Cell, Error> {
+        let cell_data = self.super_struct.raw_data.to_vec();
+        Cell::new(offset as usize, CellSuper {
+            db: self.super_struct.db.clone(),
+            page: PageType::Schema(self.clone()),
+            raw_data: cell_data
+        })
+    }
+
+    pub fn clone(&self) -> SchemaPage {
+        SchemaPage {
+            db_header: self.db_header.clone(),
+            page_number: self.page_number,
+            page_header: self.page_header.clone(),
+            data: self.data.clone(),
+            super_struct: self.super_struct.clone()
+        }
+    }
 }
 
 impl DataPage {
-    pub fn new(raw_data: Vec<u8>, page_number: u32, super_struct: PageSuper) -> PageType {
-        let page_header = PageHeader::new(raw_data[..SQLITE_PAGE_HEADER_SIZE].to_vec());
+    pub fn new(page_number: u32, super_struct: PageSuper) -> DataPage {
+        let page_header = PageHeader::new(super_struct.raw_data[..SQLITE_PAGE_HEADER_SIZE].to_vec());
 
 
-        let data = raw_data[SQLITE_PAGE_HEADER_SIZE..raw_data.len()].to_vec();
-        PageType::Data(DataPage {
+        let data = super_struct.raw_data[SQLITE_PAGE_HEADER_SIZE..super_struct.raw_data.len()].to_vec();
+        DataPage {
             page_number,
-            raw_data,
             page_header,
             data,
             super_struct
-        })
+        }
     }
 
     pub fn get_cell_offsets(&self) -> Vec<u16> {
@@ -117,8 +156,8 @@ impl DataPage {
         for i in 0..self.page_header.num_cells {
             let offset_index = SQLITE_PAGE_HEADER_SIZE + (i * 2) as usize;
             let offset = u16::from_be_bytes([
-                self.raw_data[offset_index],
-                self.raw_data[offset_index + 1]
+                self.super_struct.raw_data[offset_index],
+                self.super_struct.raw_data[offset_index + 1]
             ]);
             offsets.push(offset);
         }
@@ -132,8 +171,8 @@ impl DataPage {
         for i in 0..self.page_header.num_cells {
             let offset_index = SQLITE_PAGE_HEADER_SIZE + (i * 2) as usize;
             let offset = u16::from_be_bytes([
-                self.raw_data[offset_index],
-                self.raw_data[offset_index + 1]
+                self.super_struct.raw_data[offset_index],
+                self.super_struct.raw_data[offset_index + 1]
             ]);
             let cell = self.get_cell_content(offset).unwrap();
             cells.push(cell);
@@ -147,8 +186,21 @@ impl DataPage {
 
         let cell_header_offset =  offset as usize - db_header_offset;
 
-        let cell_data = self.raw_data.to_vec();
+        let cell_data = self.super_struct.raw_data.to_vec();
 
-        Cell::new(cell_data, cell_header_offset)
+        Cell::new(cell_header_offset, CellSuper {
+            db: self.super_struct.db.clone(),
+            page: PageType::Data(self.clone()),
+            raw_data: cell_data
+        })
+    }
+
+    pub fn clone(&self) -> DataPage {
+        DataPage {
+            page_number: self.page_number,
+            page_header: self.page_header.clone(),
+            data: self.data.clone(),
+            super_struct: self.super_struct.clone()
+        }
     }
 }

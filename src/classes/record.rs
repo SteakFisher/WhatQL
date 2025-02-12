@@ -24,13 +24,19 @@ impl RecordType {
     }
 }
 
-pub struct SchemaRecord {
-    pub record: Record,
+pub struct SchemaColumns {
     pub record_type: RecordType,
     pub record_name: String,
     pub table_name: String,
     pub root_page: i8,
     pub sql: String
+}
+
+pub struct SchemaRecord {
+    pub header_size: u64,
+    pub serial_codes: Vec<u64>,
+    pub values: Vec<SqliteValue>,
+    pub columns: SchemaColumns
 }
 
 impl Record {

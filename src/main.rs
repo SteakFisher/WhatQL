@@ -39,7 +39,7 @@ fn main() -> Result<()> {
             let page1 = db.get_schema()?;
             page1.db_header.page_size;
 
-            let num_pages = page1.page.page_header.num_cells;
+            let num_pages = page1.page_header.num_cells;
 
             println!("number of tables: {}", num_pages);
         }
@@ -47,38 +47,18 @@ fn main() -> Result<()> {
             let db = Database::new(args[1].clone());
 
             let schema = db.get_schema()?;
-            // let page1 = schema.page.raw_data;
 
-            // let record = (&db.get_schema()?.page.get_cell_contents()[0]).record.parse_into_schema()?;
+            let offsets = &schema.get_cell_contents();
 
-
-            let offsets = schema.page.get_cell_offsets();
+            let offsets = schema.get_cell_offsets();
 
             for i in 0..offsets.len() {
                 let offset = offsets[i];
-                let cell = schema.page.get_cell_content(offset)?;
+                let cell = schema.get_cell_content(offset)?;
                 if let SqliteValue::Text(text) = &cell.record.values[2] {
-                    println!("{}", text);  // Will print just: apples, sqlite_sequence, oranges
+                    println!("{}", text);
                 }
             }
-
-            //
-            // let (row_id, size_row) = decode_sqlite_varint(&page1[offsets[2] as usize + size_bytes..(offsets[2] + 9) as usize + size_bytes]);
-            // println!("Rowid: {:?}", row_id);
-            //
-            // let (header_size, header_size_size) = decode_sqlite_varint(&page1[offsets[2] as usize + size_bytes + size_row..(offsets[2] + 9) as usize + size_bytes + size_row]);
-            // println!("Header size: {:?}", header_size);
-            //
-            // let mut record_header = vec![];
-            //
-            // let mut index = 0;
-            // while index < header_size - 1 {
-            //     let (size, size_bytes) = decode_sqlite_varint(&page1[offsets[2] as usize + size_bytes + size_row + header_size_size + (index as usize)..(offsets[2] + 9) as usize + size_bytes + size_row + header_size_size + (index as usize)]);
-            //     record_header.push(size);
-            //     index += size_bytes as u64;
-            // }
-            //
-            // println!("Record header: {:?}", record_header);
         }
         _ => {
             let command_split = command.split(" ").collect::<Vec<&str>>();

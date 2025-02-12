@@ -1,7 +1,5 @@
-use std::fmt;
-use crate::classes::page::{PageSuper, SchemaPage};
-use crate::classes::DataPage;
-use crate::{SQLITE_HEADER_SIZE, SQLITE_PAGE_HEADER_SIZE};
+use crate::classes::page::{PageSuper, PageType, SchemaPage};
+use crate::SQLITE_HEADER_SIZE;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::SeekFrom;
@@ -35,6 +33,40 @@ pub struct DatabaseHeader {
     pub version_valid_for: u32,
     pub sqlite_version_number: u32,
     pub raw_data: Vec<u8>
+}
+
+impl DatabaseHeader {
+    pub fn as_str(&self) -> &str {
+        std::str::from_utf8(&self.raw_data).unwrap()
+    }
+
+    pub fn clone(&self) -> DatabaseHeader {
+        DatabaseHeader {
+            header_string: self.header_string,
+            page_size: self.page_size,
+            write_format_version: self.write_format_version,
+            read_format_version: self.read_format_version,
+            reserved_space: self.reserved_space,
+            max_embedded_payload_fraction: self.max_embedded_payload_fraction,
+            min_embedded_payload_fraction: self.min_embedded_payload_fraction,
+            leaf_payload_fraction: self.leaf_payload_fraction,
+            file_change_counter: self.file_change_counter,
+            database_size: self.database_size,
+            first_freelist_trunk_page: self.first_freelist_trunk_page,
+            total_freelist_pages: self.total_freelist_pages,
+            schema_cookie: self.schema_cookie,
+            schema_format: self.schema_format,
+            default_page_cache_size: self.default_page_cache_size,
+            largest_root_b_tree_page_number: self.largest_root_b_tree_page_number,
+            text_encoding: self.text_encoding,
+            user_version: self.user_version,
+            incremental_vacuum_mode: self.incremental_vacuum_mode,
+            application_id: self.application_id,
+            version_valid_for: self.version_valid_for,
+            sqlite_version_number: self.sqlite_version_number,
+            raw_data: self.raw_data.clone()
+        }
+    }
 }
 
 impl Database {
@@ -91,7 +123,12 @@ impl Database {
         let mut page = vec![0; page_size as usize];
         file.read_exact(&mut page)?;
 
-        let schema = SchemaPage::new(page, PageSuper::Database(self.clone()));
+        let super_struct = PageSuper {
+            db: self.clone(),
+            raw_data: page
+        };
+
+        let schema = SchemaPage::new(super_struct);
 
         Ok(schema)
     }
