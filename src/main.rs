@@ -69,6 +69,7 @@ fn main() -> Result<()> {
 
             let schema = db.get_schema()?;
 
+
             let table_data = schema.get_table_data();
 
             let mut table_found = false;
