@@ -11,3 +11,4 @@ anyhow = "1.0.68"                                # error handling
 bytes = "1.3.0"                                  # helps manage buffers
 thiserror = "1.0.38"
 hex = "0.4.3"                             # error handling
+sqlparser = "0.54.0"

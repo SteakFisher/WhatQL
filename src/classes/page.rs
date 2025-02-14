@@ -175,6 +175,26 @@ impl DataPage {
         }
     }
 
+    pub fn get_columns(&self) -> Vec<SchemaRecord> {
+        let mut columns: Vec<SchemaRecord> = Vec::new();
+
+        let schema = self.super_struct.db.get_schema().unwrap().get_table_data();
+
+        let mut sql_create_queries: Vec<String> = Vec::new();
+
+        for i in schema {
+            if let SqliteValue::Text(sql_create_query) = &i.values[4] {
+                sql_create_queries.push(sql_create_query.to_string())
+            }
+        }
+
+        for query in sql_create_queries {
+
+        }
+
+        columns
+    }
+
     pub fn get_cell_offsets(&self) -> Vec<u16> {
         let mut offsets: Vec<u16> = Vec::with_capacity(self.page_header.num_cells as usize);
 

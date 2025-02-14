@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use crate::classes::DataPage;
+use crate::helpers::SqliteValue;
 
 pub struct Database {
     file_location: String,
@@ -132,6 +133,29 @@ impl Database {
         let schema = SchemaPage::new(super_struct);
 
         Ok(schema)
+    }
+
+    pub fn get_page_number(&self, page_name: String) -> Result<u32, std::io::Error> {
+        let schema = self.get_schema()?;
+        let table_data = schema.get_table_data();
+
+        let mut table_found = false;
+        let mut table_root_page = 0;
+
+        for i in table_data {
+            if let SqliteValue::Text(text) = &i.values[1] {
+                if (text == &page_name) {
+                    table_found = true;
+                    if let SqliteValue::Integer(root_page_number) = &i.values[3] {
+                        if let SqliteValue::Integer(root_page_number) = &i.values[3] {
+                            table_root_page = *root_page_number as u32;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(table_root_page)
     }
 
     pub fn get_page(&self, page_number: u32) -> Result<DataPage, std::io::Error> {

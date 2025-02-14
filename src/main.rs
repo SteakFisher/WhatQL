@@ -1,13 +1,15 @@
 mod helpers;
 mod classes;
 
-use std::fmt::Display;
 use crate::helpers::SqliteValue;
 use anyhow::{bail, Result};
 use classes::Database;
+use sqlparser::ast::Statement;
+use sqlparser::dialect::SQLiteDialect;
+use sqlparser::parser::Parser;
+use std::fmt::Display;
 use std::io::prelude::*;
 use std::ops::Index;
-use crate::classes::RecordType;
 
 const SQLITE_HEADER_SIZE: usize = 100;
 const SQLITE_PAGE_HEADER_SIZE: usize = 8;
@@ -61,45 +63,103 @@ fn main() -> Result<()> {
             }
         }
         _ => {
-            let command_split = command.split(" ").collect::<Vec<&str>>();
-            let query_table_name = &command_split[command_split.len() - 1];
-            eprintln!("Querying table: {}", query_table_name);
-
-            let db = Database::new(args[1].clone());
-
-            let schema = db.get_schema()?;
-
-
-            let table_data = schema.get_table_data();
-
-            let mut table_found = false;
-            let mut table_root_page = 0;
-
-            for i in table_data {
-                if let SqliteValue::Text(text) = &i.values[1] {
-                    if (text == query_table_name) {
-                        table_found = true;
-                        if let SqliteValue::Integer(root_page_number) = &i.values[3] {
-                            if let SqliteValue::Integer(root_page_number) = &i.values[3] {
-                                table_root_page = *root_page_number as u32;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if !table_found {
-                bail!("Table not found: {}", query_table_name);
-            }
-
-            let table = db.get_page(table_root_page - 1)?;
-
-            let cell_count = table.page_header.num_cells;
-            println!("{}", cell_count);
+            // let command_split = command.split(" ").collect::<Vec<&str>>();
+            // let query_table_name = &command_split[command_split.len() - 1];
+            // eprintln!("Querying table: {}", query_table_name);
+            //
+            // let db = Database::new(args[1].clone());
+            //
+            // let schema = db.get_schema()?;
+            //
+            //
+            // let table_data = schema.get_table_data();
+            //
+            // let mut table_found = false;
+            // let mut table_root_page = 0;
+            //
+            // for i in table_data {
+            //     if let SqliteValue::Text(text) = &i.values[1] {
+            //         if (text == query_table_name) {
+            //             table_found = true;
+            //             if let SqliteValue::Integer(root_page_number) = &i.values[3] {
+            //                 if let SqliteValue::Integer(root_page_number) = &i.values[3] {
+            //                     table_root_page = *root_page_number as u32;
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
+            //
+            // if !table_found {
+            //     bail!("Table not found: {}", query_table_name);
+            // }
+            //
+            // let table = db.get_page(table_root_page - 1)?;
+            //
+            // let cell_count = table.page_header.num_cells;
+            // println!("{}", cell_count);
 
             // let mut table = schema.get_page(query_table_name)?;
             // bail!("Missing or invalid command passed: {}", command.as_str())
 
+            let dialect = SQLiteDialect {};
+
+            let ast = Parser::parse_sql(&dialect, command)?;
+
+            let mut extracted_column_name: Option<String> = None;
+            let mut extracted_table_name: Option<String> = None;
+
+            for statement in ast {
+                match statement {
+                    Statement::Query(query) => {
+                        let query = *query;
+                        println!("{:?}", query.body);
+                        match *query.body {
+                            sqlparser::ast::SetExpr::Select(select) => {
+                                let attached_token = select.select_token.0.token;
+
+                                match &select.projection[0] {
+                                    sqlparser::ast::SelectItem::UnnamedExpr(expr) => {
+                                        match expr {
+                                            sqlparser::ast::Expr::Identifier(ident) => {
+                                                extracted_column_name = Some(ident.value.clone());
+                                            }
+                                            _ => {}
+                                        }
+                                    }
+                                    _ => {}
+                                }
+
+                                match &select.from[0].relation {
+                                    sqlparser::ast::TableFactor::Table { name, alias, .. } => {
+                                        match name {
+                                            sqlparser::ast::ObjectName(ident) => {
+                                                extracted_table_name = Some(ident[0].value.clone());
+                                            }
+                                            _ => {}
+                                        }
+                                    }
+                                    _ => {}
+                                }
+
+                            }
+                            _ => {}
+                        }
+                    }
+                    _ => {}
+                }
+
+                // Use the built-in `to_string` method for pretty printing
+                // println!("{:?}", statement);
+            }
+
+            println!("{:?}", extracted_column_name);
+            println!("{:?}", extracted_table_name);
+
+            let db = Database::new(args[1].clone());
+            let page_num = db.get_page_number(extracted_table_name.clone().unwrap())?;
+            let table = db.get_page(page_num - 1)?;
+            let smth = table.get_columns();
         },
     }
 
