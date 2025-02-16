@@ -189,7 +189,7 @@ impl DataPage {
         }
 
         for query in sql_create_queries {
-
+            println!("{}", query);
         }
 
         columns

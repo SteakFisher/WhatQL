@@ -22,6 +22,7 @@ impl RecordType {
     }
 }
 
+#[derive(Debug)]
 pub enum SchemaRecordType {
     Table,
     Index,
@@ -40,6 +41,7 @@ impl SchemaRecordType {
     }
 }
 
+#[derive(Debug)]
 pub struct SchemaColumns {
     pub record_type: SchemaRecordType,
     pub record_name: String,
@@ -48,6 +50,7 @@ pub struct SchemaColumns {
     pub sql: String
 }
 
+#[derive(Debug)]
 pub struct SchemaRecord {
     pub header_size: u64,
     pub serial_codes: Vec<u64>,

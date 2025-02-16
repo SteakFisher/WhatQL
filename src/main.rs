@@ -10,9 +10,11 @@ use sqlparser::parser::Parser;
 use std::fmt::Display;
 use std::io::prelude::*;
 use std::ops::Index;
+use crate::classes::SelectParser;
 
 const SQLITE_HEADER_SIZE: usize = 100;
 const SQLITE_PAGE_HEADER_SIZE: usize = 8;
+
 
 fn main() -> Result<()> {
     // Parse arguments
@@ -106,8 +108,8 @@ fn main() -> Result<()> {
 
             let ast = Parser::parse_sql(&dialect, command)?;
 
-            let mut extracted_column_name: Option<String> = None;
-            let mut extracted_table_name: Option<String> = None;
+            let mut extracted_column_names: Vec<String> = vec![];
+            let mut extracted_table_names: Vec<String> = vec![];
 
             for statement in ast {
                 match statement {
@@ -116,31 +118,9 @@ fn main() -> Result<()> {
                         println!("{:?}", query.body);
                         match *query.body {
                             sqlparser::ast::SetExpr::Select(select) => {
-                                let attached_token = select.select_token.0.token;
+                                extracted_column_names = SelectParser::get_columns(select.clone() );
 
-                                match &select.projection[0] {
-                                    sqlparser::ast::SelectItem::UnnamedExpr(expr) => {
-                                        match expr {
-                                            sqlparser::ast::Expr::Identifier(ident) => {
-                                                extracted_column_name = Some(ident.value.clone());
-                                            }
-                                            _ => {}
-                                        }
-                                    }
-                                    _ => {}
-                                }
-
-                                match &select.from[0].relation {
-                                    sqlparser::ast::TableFactor::Table { name, alias, .. } => {
-                                        match name {
-                                            sqlparser::ast::ObjectName(ident) => {
-                                                extracted_table_name = Some(ident[0].value.clone());
-                                            }
-                                            _ => {}
-                                        }
-                                    }
-                                    _ => {}
-                                }
+                                extracted_table_names = SelectParser::get_table_names(select.clone());
 
                             }
                             _ => {}
@@ -153,13 +133,14 @@ fn main() -> Result<()> {
                 // println!("{:?}", statement);
             }
 
-            println!("{:?}", extracted_column_name);
-            println!("{:?}", extracted_table_name);
+            println!("{:?}", extracted_column_names);
+            println!("{:?}", extracted_table_names);
 
             let db = Database::new(args[1].clone());
-            let page_num = db.get_page_number(extracted_table_name.clone().unwrap())?;
+            let page_num = db.get_page_number(extracted_table_names[0].clone())?;
             let table = db.get_page(page_num - 1)?;
             let smth = table.get_columns();
+            println!("{:?}", smth);
         },
     }
 
